@@ -23,13 +23,16 @@ jobs:
             sleep 2
           done
           curl --fail --silent http://localhost:8000/healthz
-          # localhost.run is an SSH reverse tunnel; it needs no local daemon or
-          # package installation on the ephemeral GitHub runner.
-          nohup ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
-            -o ExitOnForwardFailure=yes -R 80:localhost:8000 \
-            nokey@localhost.run >/tmp/tunnel.log 2>&1 &
+          # Cloudflare quick tunnels are more stable than the free SSH tunnel
+          # previously used here.  Download a self-contained runner binary.
+          curl --fail --location --silent --show-error \
+            --output /tmp/cloudflared \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x /tmp/cloudflared
+          nohup /tmp/cloudflared tunnel --no-autoupdate --url http://localhost:8000 \
+            >/tmp/tunnel.log 2>&1 &
           for _ in {1..60}; do
-            URL=$(grep -oE 'https://[a-z0-9.-]+' /tmp/tunnel.log | grep -v localhost.run | head -n1 || true)
+            URL=$(grep -oE 'https://[-a-z0-9]+\.trycloudflare\.com' /tmp/tunnel.log | head -n1 || true)
             if [ -n "$URL" ]; then break; fi
             sleep 1
           done
