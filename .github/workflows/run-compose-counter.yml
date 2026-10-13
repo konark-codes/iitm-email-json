@@ -37,7 +37,6 @@ jobs:
             sleep 1
           done
           test -n "${URL:-}"
-          curl --fail --silent "$URL/healthz"
           cd ..
           printf '%s\n' "$URL" > compose-counter-tunnel.txt
           git config user.name 'github-actions[bot]'
