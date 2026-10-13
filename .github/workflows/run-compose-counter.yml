@@ -1,0 +1,47 @@
+name: Run Compose Redis Counter
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  serve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Launch Compose stack and public tunnel
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd compose-counter
+          docker compose up --build -d
+          for _ in {1..30}; do
+            if curl --fail --silent http://localhost:8000/healthz >/dev/null; then break; fi
+            sleep 2
+          done
+          curl --fail --silent http://localhost:8000/healthz
+          sudo curl --fail --location --silent --show-error \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+            --output /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          nohup cloudflared tunnel --url http://localhost:8000 >/tmp/cloudflared.log 2>&1 &
+          for _ in {1..60}; do
+            URL=$(grep -oE 'https://[-a-z0-9]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
+            if [ -n "$URL" ]; then break; fi
+            sleep 1
+          done
+          test -n "${URL:-}"
+          curl --fail --silent "$URL/healthz"
+          cd ..
+          printf '%s\n' "$URL" > compose-counter-tunnel.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add compose-counter-tunnel.txt
+          git commit -m 'Publish counter tunnel URL' || true
+          git push
+          echo "Public tunnel: $URL"
+      - name: Keep tunnel online for grading
+        run: sleep 21000
