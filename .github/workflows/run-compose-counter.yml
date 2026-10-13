@@ -23,11 +23,11 @@ jobs:
             sleep 2
           done
           curl --fail --silent http://localhost:8000/healthz
-          sudo curl --fail --location --silent --show-error \
+          curl --fail --location --silent --show-error \
             https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
-            --output /usr/local/bin/cloudflared
-          sudo chmod +x /usr/local/bin/cloudflared
-          nohup cloudflared tunnel --url http://localhost:8000 >/tmp/cloudflared.log 2>&1 &
+            --output "$RUNNER_TEMP/cloudflared"
+          chmod +x "$RUNNER_TEMP/cloudflared"
+          nohup "$RUNNER_TEMP/cloudflared" tunnel --url http://localhost:8000 >/tmp/cloudflared.log 2>&1 &
           for _ in {1..60}; do
             URL=$(grep -oE 'https://[-a-z0-9]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
             if [ -n "$URL" ]; then break; fi
