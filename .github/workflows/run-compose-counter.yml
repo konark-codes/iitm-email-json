@@ -43,5 +43,6 @@ jobs:
           git commit -m 'Publish counter tunnel URL' || true
           git push
           echo "Public tunnel: $URL"
-      - name: Keep tunnel online for grading
-        run: sleep 21000
+          # Keep the parent shell alive: hosted runners clean up background
+          # processes when a step ends, so this must stay in this same step.
+          sleep 21000
