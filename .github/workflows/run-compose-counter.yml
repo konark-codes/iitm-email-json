@@ -12,6 +12,10 @@ jobs:
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
+      # Installed as an Action so GitHub fetches the client through its
+      # authenticated action-download path rather than a runner curl request.
+      - name: Install cloudflared
+        uses: AnimMouse/setup-cloudflared@v2
       - name: Launch Compose stack and public tunnel
         shell: bash
         run: |
@@ -24,12 +28,8 @@ jobs:
           done
           curl --fail --silent http://localhost:8000/healthz
           # Cloudflare quick tunnels are more stable than the free SSH tunnel
-          # previously used here.  Download a self-contained runner binary.
-          curl --fail --location --silent --show-error \
-            --output /tmp/cloudflared \
-            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-          chmod +x /tmp/cloudflared
-          nohup /tmp/cloudflared tunnel --no-autoupdate --url http://localhost:8000 \
+          # previously used here.  cloudflared comes from the setup Action.
+          nohup cloudflared tunnel --no-autoupdate --url http://localhost:8000 \
             >/tmp/tunnel.log 2>&1 &
           for _ in {1..60}; do
             URL=$(grep -oE 'https://[-a-z0-9]+\.trycloudflare\.com' /tmp/tunnel.log | head -n1 || true)
